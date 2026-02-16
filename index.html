@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes"> <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <meta name="apple-mobile-web-app-title" content="Fatma'nın Oyunu"> <link rel="apple-touch-icon" href="icon.png"> <title>Fatma'nın Boyama Kitabı</title>
+    <style>
+        /* iPhone Çentiği ve Kaydırma Engelleme Ayarları */
+        body {
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            background-color: #fff1f2;
+            font-family: 'Comic Sans MS', sans-serif;
+            height: 100vh; overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none; /* Metin seçimini engeller */
+            user-select: none;
+            padding-top: env(safe-area-inset-top); /* Çentik payı */
+        }
+
+        #toolbar {
+            background: white;
+            padding: 10px;
+            display: flex; flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 100;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+
+        .page-nav { display: flex; justify-content: space-between; align-items: center; }
+        .nav-btn { background: #f43f5e; color: white; border: none; padding: 8px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; }
+
+        .palette { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; align-items: center; scrollbar-width: none; }
+        .color-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #eee; flex-shrink: 0; transition: 0.2s; }
+        .color-btn.active { border-color: #333; transform: scale(1.2); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+        .rainbow-wheel { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); border: 2px solid #ddd; position: relative; }
+        #colorPickerInput { position: absolute; opacity: 0; width: 100%; height: 100%; left:0; top:0; }
+
+        .tools-row { display: flex; justify-content: space-around; align-items: center; background: #fdf2f8; padding: 5px; border-radius: 15px; }
+        .tool-btn { font-size: 22px; background: none; border: 2px solid transparent; border-radius: 10px; padding: 5px; }
+        .tool-btn.active-tool { background: white; border-color: #f43f5e; transform: scale(1.1); }
+        
+        input[type=range] { width: 80px; accent-color: #f43f5e; }
+
+        #canvas-wrapper { flex-grow: 1; position: relative; margin: 10px; display: flex; align-items: center; justify-content: center; }
+        canvas { position: absolute; touch-action: none; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        #paintLayer { z-index: 1; background: white; }
+        #outlineLayer { z-index: 2; pointer-events: none; mix-blend-mode: multiply; }
+
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <div class="page-nav">
+        <button class="nav-btn" onclick="changePage(-1)">⬅️</button>
+        <span id="page-indicator" style="color:#f43f5e; font-weight:bold;">Sayfa 1</span>
+        <button class="nav-btn" onclick="changePage(1)">➡️</button>
+    </div>
+
+    <div class="palette">
+        <div class="color-btn rainbow-wheel" id="wheelBtn"><input type="color" id="colorPickerInput"></div>
+        <div class="color-btn active" style="background: #fb7185;" data-color="#fb7185"></div>
+        <div class="color-btn" style="background: #f472b6;" data-color="#f472b6"></div>
+        <div class="color-btn" style="background: #c084fc;" data-color="#c084fc"></div>
+        <div class="color-btn" style="background: #60a5fa;" data-color="#60a5fa"></div>
+        <div class="color-btn" style="background: #4ade80;" data-color="#4ade80"></div>
+        <div class="color-btn" style="background: #facc15;" data-color="#facc15"></div>
+        <div class="color-btn" style="background: #000000;" data-color="#000000"></div>
+    </div>
+
+    <div class="tools-row">
+        <button class="tool-btn active-tool" id="btn-brush" onclick="setTool('brush')">✏️</button>
+        <button class="tool-btn" id="btn-bucket" onclick="setTool('bucket')">🪣</button>
+        <button class="tool-btn" id="btn-pipette" onclick="setTool('pipette')">🧪</button>
+        <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
+        <input type="range" id="sizeSlider" min="2" max="40" value="10">
+        <button class="nav-btn" style="background:#94a3b8; padding:5px 10px;" onclick="resetPaint()">Sil</button>
+    </div>
+</div>
+
+<div id="canvas-wrapper">
+    <canvas id="paintLayer"></canvas>
+    <canvas id="outlineLayer"></canvas>
+</div>
+
+<script>
+    // --- RESİMLERİNİ BURAYA YAZ ---
+    const images = ["resim1.png", "resim2.png", "resim3.png", "resim4.png"];
+
+    let currentPageIndex = 0;
+    let currentTool = 'brush'; 
+    let brushSize = 10;
+    let selectedColor = "#fb7185";
+    let isDrawing = false;
+    let isBlankPage = false;
+
+    const paintCanvas = document.getElementById('paintLayer');
+    const paintCtx = paintCanvas.getContext('2d', { willReadFrequently: true });
+    const outlineCanvas = document.getElementById('outlineLayer');
+    const outlineCtx = outlineCanvas.getContext('2d', { willReadFrequently: true });
+    const img = new Image();
+
+    window.onload = () => loadPage(0);
+
+    function loadPage(index) {
+        if (index < 0) index = images.length;
+        if (index >= images.length) {
+            isBlankPage = true;
+            document.getElementById('page-indicator').innerText = "Boş Sayfa ✨";
+            currentPageIndex = images.length;
+            setupCanvas(true);
+            return;
+        }
+        isBlankPage = false;
+        currentPageIndex = index;
+        document.getElementById('page-indicator').innerText = `Sayfa ${currentPageIndex + 1}`;
+        img.src = images[currentPageIndex];
+        img.onload = () => setupCanvas(false);
+        img.onerror = () => alert("Resim yüklenemedi: " + images[currentPageIndex]);
+    }
+
+    function changePage(dir) {
+        let newIndex = currentPageIndex + dir;
+        if (newIndex > images.length) newIndex = 0;
+        if (newIndex < 0) newIndex = images.length;
+        loadPage(newIndex);
+    }
+
+    function setupCanvas(isEmpty) {
+        const toolbarH = document.getElementById('toolbar').offsetHeight;
+        const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('padding-top')) || 0;
+        const availableW = window.innerWidth - 20;
+        const availableH = window.innerHeight - toolbarH - safeAreaTop - 20;
+
+        let w, h;
+        if (isEmpty) { w = availableW; h = availableH; }
+        else {
+            const scale = Math.min(availableW / img.width, availableH / img.height);
+            w = Math.floor(img.width * scale);
+            h = Math.floor(img.height * scale);
+        }
+
+        paintCanvas.width = outlineCanvas.width = w;
+        paintCanvas.height = outlineCanvas.height = h;
+
+        outlineCtx.clearRect(0, 0, w, h);
+        if (!isEmpty) outlineCtx.drawImage(img, 0, 0, w, h);
+        resetPaint();
+    }
+
+    function resetPaint() {
+        paintCtx.fillStyle = "white";
+        paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
+    }
+
+    function setTool(tool) {
+        currentTool = tool;
+        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active-tool'));
+        document.getElementById('btn-' + tool).classList.add('active-tool');
+    }
+
+    document.querySelectorAll('.palette .color-btn:not(.rainbow-wheel)').forEach(btn => {
+        btn.addEventListener('click', () => {
+            selectedColor = btn.dataset.color;
+            highlightColorBtn(btn);
+            if (currentTool === 'eraser' || currentTool === 'pipette') setTool('brush');
+        });
+    });
+
+    document.getElementById('colorPickerInput').addEventListener('input', (e) => {
+        selectedColor = e.target.value;
+        highlightColorBtn(document.getElementById('wheelBtn'));
+        if (currentTool === 'eraser' || currentTool === 'pipette') setTool('brush');
+    });
+
+    function highlightColorBtn(activeBtn) {
+        document.querySelector('.palette .active')?.classList.remove('active');
+        if(activeBtn) activeBtn.classList.add('active');
+    }
+
+    document.getElementById('sizeSlider').addEventListener('input', (e) => brushSize = e.target.value);
+
+    // --- PİPET ---
+    function pickColor(x, y) {
+        try {
+            const pixel = paintCtx.getImageData(x, y, 1, 1).data;
+            const hex = "#" + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+            selectedColor = hex;
+            document.getElementById('colorPickerInput').value = hex;
+            highlightColorBtn(document.getElementById('wheelBtn'));
+            setTool('brush');
+        } catch (e) { console.error("Pipet hatası (CORS): Siteyi sunucuya yükleyin."); }
+    }
+
+    // --- DRAW & TOUCH ---
+    function start(e) {
+        // Prevent default scrolling on iOS
+        if(e.target.tagName === 'CANVAS') e.preventDefault();
+        
+        const rect = paintCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = Math.floor(clientX - rect.left);
+        const y = Math.floor(clientY - rect.top);
+
+        if (currentTool === 'pipette') { pickColor(x, y); return; }
+        if (currentTool === 'bucket') { handleBucket(x, y); return; }
+
+        isDrawing = true;
+        draw(e);
+    }
+
+    function stop() { isDrawing = false; paintCtx.beginPath(); }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        if(e.target.tagName === 'CANVAS') e.preventDefault();
+        
+        const rect = paintCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        paintCtx.lineWidth = brushSize;
+        paintCtx.lineCap = 'round';
+        paintCtx.lineJoin = 'round';
+        paintCtx.strokeStyle = (currentTool === 'eraser') ? "white" : selectedColor;
+
+        paintCtx.lineTo(x, y);
+        paintCtx.stroke();
+        paintCtx.beginPath();
+        paintCtx.moveTo(x, y);
+    }
+
+    function handleBucket(startX, startY) {
+        try {
+            const w = paintCanvas.width;
+            const h = paintCanvas.height;
+            const paintData = paintCtx.getImageData(0, 0, w, h);
+            let outlineData = (!isBlankPage) ? outlineCtx.getImageData(0, 0, w, h).data : null;
+            const startPos = (startY * w + startX) * 4;
+            const startR = paintData.data[startPos];
+            const startG = paintData.data[startPos+1];
+            const startB = paintData.data[startPos+2];
+            const fillRGB = hexToRgb(selectedColor);
+
+            if (startR === fillRGB.r && startG === fillRGB.g && startB === fillRGB.b) return;
+
+            const stack = [[startX, startY]];
+            while(stack.length) {
+                const [x, y] = stack.pop();
+                const pos = (y * w + x) * 4;
+                if (x < 0 || x >= w || y < 0 || y >= h) continue;
+                if (outlineData && outlineData[pos+3] > 50 && outlineData[pos] < 100) continue;
+                if (Math.abs(paintData.data[pos]-startR)<10 && Math.abs(paintData.data[pos+1]-startG)<10 && Math.abs(paintData.data[pos+2]-startB)<10) {
+                    paintData.data[pos] = fillRGB.r; paintData.data[pos+1] = fillRGB.g; paintData.data[pos+2] = fillRGB.b; paintData.data[pos+3] = 255;
+                    stack.push([x+1, y], [x-1, y], [x, y+1], [x, y-1]);
+                }
+            }
+            paintCtx.putImageData(paintData, 0, 0);
+        } catch(e) {}
+    }
+
+    function hexToRgb(hex) {
+        const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return res ? {r: parseInt(res[1], 16), g: parseInt(res[2], 16), b: parseInt(res[3], 16)} : null;
+    }
+
+    paintCanvas.addEventListener('touchstart', start, {passive: false});
+    paintCanvas.addEventListener('touchmove', draw, {passive: false});
+    paintCanvas.addEventListener('touchend', stop);
+    paintCanvas.addEventListener('mousedown', start);
+    paintCanvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('resize', () => loadPage(currentPageIndex));
+</script>
+</body>
+</html>
