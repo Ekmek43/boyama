@@ -2,11 +2,13 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes"> <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <meta name="apple-mobile-web-app-title" content="Fatma'nın Oyunu"> <link rel="apple-touch-icon" href="icon.png"> <title>Fatma'nın Boyama Kitabı</title>
+    <meta name="apple-mobile-web-app-capable" content="yes"> 
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> 
+    <meta name="apple-mobile-web-app-title" content="Fatma'nın Oyunu"> 
+    <link rel="apple-touch-icon" href="icon.png"> 
+    <title>Fatma'nın Boyama Kitabı</title>
     <style>
-        /* iPhone Çentiği ve Kaydırma Engelleme Ayarları */
         body {
             margin: 0; padding: 0;
             display: flex; flex-direction: column;
@@ -14,42 +16,86 @@
             font-family: 'Comic Sans MS', sans-serif;
             height: 100vh; overflow: hidden;
             touch-action: none;
-            -webkit-user-select: none; /* Metin seçimini engeller */
+            -webkit-user-select: none;
             user-select: none;
-            padding-top: env(safe-area-inset-top); /* Çentik payı */
+            padding-top: env(safe-area-inset-top);
         }
 
+        /* --- ÜST PANEL --- */
         #toolbar {
             background: white;
-            padding: 10px;
+            padding: 8px;
             display: flex; flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             z-index: 100;
             border-bottom-left-radius: 20px;
             border-bottom-right-radius: 20px;
+            flex-shrink: 0;
         }
 
         .page-nav { display: flex; justify-content: space-between; align-items: center; }
-        .nav-btn { background: #f43f5e; color: white; border: none; padding: 8px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; }
+        .nav-btn { background: #f43f5e; color: white; border: none; padding: 6px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; }
 
         .palette { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; align-items: center; scrollbar-width: none; }
-        .color-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #eee; flex-shrink: 0; transition: 0.2s; }
+        .color-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #eee; flex-shrink: 0; transition: 0.2s; }
         .color-btn.active { border-color: #333; transform: scale(1.2); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
         .rainbow-wheel { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); border: 2px solid #ddd; position: relative; }
         #colorPickerInput { position: absolute; opacity: 0; width: 100%; height: 100%; left:0; top:0; }
 
         .tools-row { display: flex; justify-content: space-around; align-items: center; background: #fdf2f8; padding: 5px; border-radius: 15px; }
-        .tool-btn { font-size: 22px; background: none; border: 2px solid transparent; border-radius: 10px; padding: 5px; }
-        .tool-btn.active-tool { background: white; border-color: #f43f5e; transform: scale(1.1); }
+        .tool-btn { font-size: 20px; background: none; border: 2px solid transparent; border-radius: 10px; padding: 5px; transition: 0.2s; }
+        .tool-btn.active-tool { background: white; border-color: #f43f5e; transform: scale(1.15); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        input[type=range] { width: 80px; accent-color: #f43f5e; }
+        /* Kalem Boyutu Slider */
+        .slider-group { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #666; }
+        input[type=range] { width: 60px; accent-color: #f43f5e; }
 
-        #canvas-wrapper { flex-grow: 1; position: relative; margin: 10px; display: flex; align-items: center; justify-content: center; }
-        canvas { position: absolute; touch-action: none; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        /* --- OYUN ALANI (CANVAS) --- */
+        #viewport {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden; /* Dışarı taşanları gizle */
+            background-color: #fce7f3; /* Tuvalin dışı */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        /* Canvas Grubu (Zoom ve Pan buraya uygulanacak) */
+        #canvas-group {
+            position: relative;
+            transform-origin: center center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        canvas { 
+            position: absolute; 
+            left: 0; top: 0;
+            border-radius: 10px; 
+            touch-action: none; 
+        }
         #paintLayer { z-index: 1; background: white; }
         #outlineLayer { z-index: 2; pointer-events: none; mix-blend-mode: multiply; }
+
+        /* Zoom Kontrol Paneli (Alt Kısım) */
+        #zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            z-index: 200;
+        }
+        .zoom-icon { font-size: 14px; }
 
     </style>
 </head>
@@ -78,18 +124,32 @@
         <button class="tool-btn" id="btn-bucket" onclick="setTool('bucket')">🪣</button>
         <button class="tool-btn" id="btn-pipette" onclick="setTool('pipette')">🧪</button>
         <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧽</button>
-        <input type="range" id="sizeSlider" min="2" max="40" value="10">
-        <button class="nav-btn" style="background:#94a3b8; padding:5px 10px;" onclick="resetPaint()">Sil</button>
+        <button class="tool-btn" id="btn-move" onclick="setTool('move')" style="font-size: 24px;">✋</button>
+        
+        <div class="slider-group">
+            <span>Kalınlık:</span>
+            <input type="range" id="sizeSlider" min="2" max="40" value="10">
+        </div>
+        <button class="nav-btn" style="background:#94a3b8; padding:5px;" onclick="resetPaint()">Sil</button>
     </div>
 </div>
 
-<div id="canvas-wrapper">
-    <canvas id="paintLayer"></canvas>
-    <canvas id="outlineLayer"></canvas>
+<div id="viewport">
+    <div id="canvas-group">
+        <canvas id="paintLayer"></canvas>
+        <canvas id="outlineLayer"></canvas>
+    </div>
+    
+    <div id="zoom-controls">
+        <span class="zoom-icon">🔍-</span>
+        <input type="range" id="zoomSlider" min="0.5" max="3" step="0.1" value="1">
+        <span class="zoom-icon">🔍+</span>
+        <button onclick="resetView()" style="border:none; background:none; color:#f43f5e; font-weight:bold; font-size:12px;">Sıfırla</button>
+    </div>
 </div>
 
 <script>
-    // --- RESİMLERİNİ BURAYA YAZ ---
+    // --- RESİMLER ---
     const images = ["resim1.png", "resim2.png", "resim3.png", "resim4.png", "resim5.png", "resim6.png"];
 
     let currentPageIndex = 0;
@@ -99,10 +159,20 @@
     let isDrawing = false;
     let isBlankPage = false;
 
+    // ZOOM ve PAN Değişkenleri
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+    let isPanning = false;
+
     const paintCanvas = document.getElementById('paintLayer');
     const paintCtx = paintCanvas.getContext('2d', { willReadFrequently: true });
     const outlineCanvas = document.getElementById('outlineLayer');
     const outlineCtx = outlineCanvas.getContext('2d', { willReadFrequently: true });
+    const canvasGroup = document.getElementById('canvas-group');
+    const zoomSlider = document.getElementById('zoomSlider');
     const img = new Image();
 
     window.onload = () => loadPage(0);
@@ -132,19 +202,24 @@
     }
 
     function setupCanvas(isEmpty) {
+        resetView(); // Sayfa değişince zoom sıfırlansın
+        
         const toolbarH = document.getElementById('toolbar').offsetHeight;
-        const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('padding-top')) || 0;
-        const availableW = window.innerWidth - 20;
-        const availableH = window.innerHeight - toolbarH - safeAreaTop - 20;
+        const availableW = window.innerWidth - 40;
+        const availableH = window.innerHeight - toolbarH - 100; // Zoom bar için pay bırak
 
         let w, h;
-        if (isEmpty) { w = availableW; h = availableH; }
-        else {
-            const scale = Math.min(availableW / img.width, availableH / img.height);
-            w = Math.floor(img.width * scale);
-            h = Math.floor(img.height * scale);
+        if (isEmpty) { 
+            w = availableW; h = availableH; 
+        } else {
+            const scaleRatio = Math.min(availableW / img.width, availableH / img.height);
+            w = Math.floor(img.width * scaleRatio);
+            h = Math.floor(img.height * scaleRatio);
         }
 
+        // Canvas Grubu ve Canvasları boyutlandır
+        canvasGroup.style.width = w + "px";
+        canvasGroup.style.height = h + "px";
         paintCanvas.width = outlineCanvas.width = w;
         paintCanvas.height = outlineCanvas.height = h;
 
@@ -158,24 +233,53 @@
         paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
     }
 
+    // --- ZOOM & PAN FONKSİYONLARI ---
+    
+    // Slider ile Zoom Yapma
+    zoomSlider.addEventListener('input', (e) => {
+        scale = parseFloat(e.target.value);
+        updateTransform();
+    });
+
+    function updateTransform() {
+        canvasGroup.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    }
+
+    function resetView() {
+        scale = 1;
+        panX = 0;
+        panY = 0;
+        zoomSlider.value = 1;
+        updateTransform();
+    }
+
+    // --- ARAÇLAR ---
     function setTool(tool) {
         currentTool = tool;
         document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active-tool'));
         document.getElementById('btn-' + tool).classList.add('active-tool');
+        
+        // El aleti seçiliyse imleci değiştir
+        if(tool === 'move') {
+            document.body.style.cursor = 'grab';
+        } else {
+            document.body.style.cursor = 'default';
+        }
     }
 
+    // Renk Seçimi
     document.querySelectorAll('.palette .color-btn:not(.rainbow-wheel)').forEach(btn => {
         btn.addEventListener('click', () => {
             selectedColor = btn.dataset.color;
             highlightColorBtn(btn);
-            if (currentTool === 'eraser' || currentTool === 'pipette') setTool('brush');
+            if (currentTool === 'eraser' || currentTool === 'pipette' || currentTool === 'move') setTool('brush');
         });
     });
 
     document.getElementById('colorPickerInput').addEventListener('input', (e) => {
         selectedColor = e.target.value;
         highlightColorBtn(document.getElementById('wheelBtn'));
-        if (currentTool === 'eraser' || currentTool === 'pipette') setTool('brush');
+        if (currentTool === 'eraser' || currentTool === 'pipette' || currentTool === 'move') setTool('brush');
     });
 
     function highlightColorBtn(activeBtn) {
@@ -185,47 +289,65 @@
 
     document.getElementById('sizeSlider').addEventListener('input', (e) => brushSize = e.target.value);
 
-    // --- PİPET ---
-    function pickColor(x, y) {
-        try {
-            const pixel = paintCtx.getImageData(x, y, 1, 1).data;
-            const hex = "#" + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
-            selectedColor = hex;
-            document.getElementById('colorPickerInput').value = hex;
-            highlightColorBtn(document.getElementById('wheelBtn'));
-            setTool('brush');
-        } catch (e) { console.error("Pipet hatası (CORS): Siteyi sunucuya yükleyin."); }
-    }
-
-    // --- DRAW & TOUCH ---
-    function start(e) {
-        // Prevent default scrolling on iOS
-        if(e.target.tagName === 'CANVAS') e.preventDefault();
-        
+    // --- DRAW & TOUCH & PAN LOGIC ---
+    
+    // Koordinatları Scale ve Pan'a göre düzeltme (MÜHENDİSLİK KISMI BURASI)
+    function getCorrectCoordinates(e) {
         const rect = paintCanvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const x = Math.floor(clientX - rect.left);
-        const y = Math.floor(clientY - rect.top);
+        
+        // Ekranda görünen boyutu (scale edilmiş hali)
+        const scaleX = paintCanvas.width / rect.width;
+        const scaleY = paintCanvas.height / rect.height;
 
-        if (currentTool === 'pipette') { pickColor(x, y); return; }
-        if (currentTool === 'bucket') { handleBucket(x, y); return; }
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    function start(e) {
+        if(e.target.tagName === 'CANVAS') e.preventDefault();
+
+        // TAŞIMA MODU
+        if (currentTool === 'move') {
+            isPanning = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            startPanX = clientX - panX;
+            startPanY = clientY - panY;
+            canvasGroup.style.cursor = 'grabbing';
+            return;
+        }
+
+        const coords = getCorrectCoordinates(e);
+
+        if (currentTool === 'pipette') { pickColor(coords.x, coords.y); return; }
+        if (currentTool === 'bucket') { handleBucket(Math.floor(coords.x), Math.floor(coords.y)); return; }
 
         isDrawing = true;
         draw(e);
     }
 
-    function stop() { isDrawing = false; paintCtx.beginPath(); }
-
     function draw(e) {
-        if (!isDrawing) return;
         if(e.target.tagName === 'CANVAS') e.preventDefault();
+
+        // TAŞIMA İŞLEMİ
+        if (isPanning && currentTool === 'move') {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            panX = clientX - startPanX;
+            panY = clientY - startPanY;
+            updateTransform();
+            return;
+        }
+
+        if (!isDrawing) return;
         
-        const rect = paintCanvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
+        const coords = getCorrectCoordinates(e);
+        const x = coords.x;
+        const y = coords.y;
 
         paintCtx.lineWidth = brushSize;
         paintCtx.lineCap = 'round';
@@ -238,7 +360,27 @@
         paintCtx.moveTo(x, y);
     }
 
+    function stop() {
+        isDrawing = false;
+        isPanning = false;
+        paintCtx.beginPath();
+        canvasGroup.style.cursor = 'default';
+    }
+
+    // --- YARDIMCILAR ---
+    function pickColor(x, y) {
+        try {
+            const pixel = paintCtx.getImageData(x, y, 1, 1).data;
+            const hex = "#" + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+            selectedColor = hex;
+            document.getElementById('colorPickerInput').value = hex;
+            highlightColorBtn(document.getElementById('wheelBtn'));
+            setTool('brush');
+        } catch (e) {}
+    }
+
     function handleBucket(startX, startY) {
+        // Kova kodu aynı, sadece koordinat düzeltmesini yukarıda yaptık
         try {
             const w = paintCanvas.width;
             const h = paintCanvas.height;
@@ -266,20 +408,24 @@
             paintCtx.putImageData(paintData, 0, 0);
         } catch(e) {}
     }
-
+    
     function hexToRgb(hex) {
         const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return res ? {r: parseInt(res[1], 16), g: parseInt(res[2], 16), b: parseInt(res[3], 16)} : null;
     }
 
-    paintCanvas.addEventListener('touchstart', start, {passive: false});
-    paintCanvas.addEventListener('touchmove', draw, {passive: false});
-    paintCanvas.addEventListener('touchend', stop);
-    paintCanvas.addEventListener('mousedown', start);
-    paintCanvas.addEventListener('mousemove', draw);
+    // Olay Dinleyicileri (Container üzerine ekledik, canvasa değil)
+    // Böylece zoomlu alanda hareket daha düzgün çalışır
+    const viewport = document.getElementById('viewport');
+    
+    viewport.addEventListener('touchstart', start, {passive: false});
+    viewport.addEventListener('touchmove', draw, {passive: false});
+    viewport.addEventListener('touchend', stop);
+    viewport.addEventListener('mousedown', start);
+    viewport.addEventListener('mousemove', draw);
     window.addEventListener('mouseup', stop);
     window.addEventListener('resize', () => loadPage(currentPageIndex));
+
 </script>
 </body>
-
 </html>
